@@ -9,7 +9,7 @@ tr_mcc_codes = pd.read_csv("contest/tr_mcc_codes.csv", sep=";")
 tr_types = pd.read_csv("contest/tr_types.csv", sep=";")
 
 data['fraud'] = 0
-data['cent_fraud'] = 0
+# data['cent_fraud'] = 0
 data['cut_fraud'] = 0
 data['deposit_fraud'] = 0
 data['sec60'] = 0
@@ -18,11 +18,12 @@ data['trans_mismatch'] = 0
 data['doubles'] = 0
 data['midnight_minus_fraud'] = 0
 data['midnight_plus_fraud'] = 0
+data['returns_fraud'] = 0
 
 # Снятие / взнос наличностей в банкоматах с копейками
-cent = data[data['tr_type'].isin([7010, 7011, 7014, 7015, 2010, 2011])]
-cent_fraud = cent[cent['amount'] * 10 % 10 != 0]
-data.loc[cent_fraud.index.values, ['fraud', 'cent_fraud']] = 1
+# cent = data[data['tr_type'].isin([7010, 7011, 7014, 7015, 2010, 2011])]
+# cent_fraud = cent[cent['amount'] * 10 % 10 != 0]
+# data.loc[cent_fraud.index.values, ['fraud', 'cent_fraud']] = 1
 
 cut = data[(data['tr_type'].isin([2010, 2011]))
            & (data['amount'] * 10 % 10 == 0)]
@@ -95,22 +96,15 @@ data.loc[(pd.concat([data, midnight_plus_fraud],
          ['fraud', 'midnight_plus_fraud']] = 1
 
 
-del data['customer_id']
-del data['tr_datetime']
-del data['mcc_code']
-del data['tr_type']
-del data['amount']
-del data['term_id']
+# Возвраты
+returns = (data[data['tr_type'].isin([6000, 6010, 6100, 6110, 6200, 6210])]
+           .groupby('customer_id', as_index=False)['tr_datetime'].count())
+data.loc[(data['tr_type'].isin([6000, 6010, 6100, 6110, 6200, 6210]) & 
+      (data['customer_id'].isin(returns[returns['tr_datetime'] >= 10]['customer_id']))), 
+         ['fraud', 'returns_fraud']] = 1
+
 data.to_csv('result/result_items.csv')
-del data['cent_fraud']
-del data['cut_fraud']
-del data['deposit_fraud']
-del data['sec60']
-del data['more10da']
-del data['trans_mismatch']
-del data['doubles']
-del data['midnight_minus_fraud']
-del data['midnight_plus_fraud']
-data.to_csv('result/result.csv')
+data['fraud'].to_csv('result/result.csv')
 
 print('Done!!!!!!!!!!!!!!!!!!!!')
+print('Frauds: ', len(data[data['fraud'] == 1]))
